@@ -1,0 +1,78 @@
+datasource db {
+    provider = "sqlite" // 使用 SQLite 数据库
+    url      = env("DATABASE_URL") // 使用环境变量中的数据库 URL
+}
+
+generator client {
+    provider  = "prisma-client-py" // 使用 Prisma Client Python
+    interface = "asyncio" // 使用异步接口
+    recursive_type_depth = 5 // 递归生成模型的最大深度
+}
+
+/// @Python(instance_name: "dept")
+model Dept {
+    id          Int      @id @default(autoincrement())
+    name        String   @unique // 部门名称
+    description String? // 部门描述
+    parent_id   Int? // 父部门ID
+    parent      Dept?    @relation("department_hierarchy", fields: [parent_id], references: [id]) // 父部门
+    sub_depts   Dept[]   @relation("department_hierarchy") // 子部门
+    is_deleted  Boolean  @default(false) // 是否删除
+    users       User[] // 一对多关系，一个部门可以有多个用户
+    created_at  DateTime @default(now()) // 创建时间
+    updated_at  DateTime @updatedAt // 更新时间，自动更新
+}
+
+/// @Python(instance_name: "user")
+model User {
+    id           Int      @id @default(autoincrement())
+    username     String // 用户名
+    email        String   @unique // 为 email 字段创建唯一索引
+    phone        String   @unique // 为 phone 字段创建唯一索引
+    password     String // 密码字段
+    is_active    Boolean  @default(true) // 是否激活
+    is_superuser Boolean  @default(false) // 是否为超级管理员
+    is_staff     Boolean  @default(false) // 是否为员工
+    roles        Role[]   @relation("user_roles") // 多对多关系，用户可以拥有多个角色
+    dept         Dept?    @relation(fields: [dept_id], references: [id]) // 一对多关系，一个用户只能属于一个部门
+    dept_id      Int?
+    created_at   DateTime @default(now()) // 创建时间
+    updated_at   DateTime @updatedAt // 更新时间，自动更新
+}
+
+/// @Python(instance_name: "role")
+model Role {
+    id          Int     @id @default(autoincrement())
+    name        String  @unique // 角色名称
+    description String? // 角色描述
+    users       User[]  @relation("user_roles") // 多对多关系, 一个角色可以分配给多个用户
+    apis        Api[]   @relation("role_apis") // 多对多关系，角色可以访问多个API
+    menus       menu[] @relation("role_menus") // 多对多关系，角色可以访问多个菜单
+}
+
+/// @Python(instance_name: "api")
+model Api {
+    id          Int     @id @default(autoincrement()) // API ID
+    path        String  @unique // API路径
+    method      String  @unique // API请求方法
+    description String? // API描述
+    roles       Role[]  @relation("role_apis") // 多对多关系，多个角色可以访问此API
+}
+
+/// @Python(instance_name: "menu")
+model menu {
+    id          Int      @id @default(autoincrement())
+    name        String   @unique // 菜单名称
+    type        String   @default("menu") // 菜单类型，默认为菜单
+    icon        String? // 菜单图标
+    path        String? // 菜单路径
+    description String? // 菜单描述
+    parent_id   Int? // 父菜单ID
+    parent      menu?    @relation("menu_hierarchy", fields: [parent_id], references: [id]) // 父菜单
+    sub_menus   menu[]   @relation("menu_hierarchy") // 子菜单
+    is_hidden   Boolean  @default(false) // 是否隐藏
+    component   String? // 组件路径
+    roles       Role[]   @relation("role_menus") // 多对多关系，多个角色可以访问此菜单
+    created_at  DateTime @default(now()) // 创建时间
+    updated_at  DateTime @updatedAt // 更新时间，自动更新
+}
