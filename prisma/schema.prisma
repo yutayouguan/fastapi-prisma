@@ -4,9 +4,10 @@ datasource db {
 }
 
 generator client {
-    provider  = "prisma-client-py" // 使用 Prisma Client Python
-    interface = "asyncio" // 使用异步接口
-    recursive_type_depth = 5 // 递归生成模型的最大深度
+    provider               = "prisma-client-py" // 使用 Prisma Client Python
+    interface              = "asyncio" // 使用异步接口 or "sync"
+    recursive_type_depth   = 5 // 递归生成模型的最大深度
+    partial_type_generator = "prisma/partial_types.py" // 生成部分类型
 }
 
 /// @Python(instance_name: "dept")
@@ -25,19 +26,21 @@ model Dept {
 
 /// @Python(instance_name: "user")
 model User {
-    id           Int      @id @default(autoincrement())
+    id           Int       @id @default(autoincrement())
     username     String // 用户名
-    email        String   @unique // 为 email 字段创建唯一索引
-    phone        String   @unique // 为 phone 字段创建唯一索引
-    password     String // 密码字段
-    is_active    Boolean  @default(true) // 是否激活
-    is_superuser Boolean  @default(false) // 是否为超级管理员
-    is_staff     Boolean  @default(false) // 是否为员工
-    roles        Role[]   @relation("user_roles") // 多对多关系，用户可以拥有多个角色
-    dept         Dept?    @relation(fields: [dept_id], references: [id]) // 一对多关系，一个用户只能属于一个部门
+    email        String    @unique // 为 email 字段创建唯一索引
+    phone        String?   @unique // 为 phone 字段创建唯一索引
+    password     String? // 密码字段
+    is_active    Boolean   @default(true) // 是否激活
+    is_superuser Boolean   @default(false) // 是否为超级管理员
+    is_staff     Boolean   @default(false) // 是否为员工
+    roles        Role[]    @relation("user_roles") // 多对多关系，用户可以拥有多个角色
+    dept         Dept?     @relation(fields: [dept_id], references: [id]) // 一对多关系，一个用户只能属于一个部门
     dept_id      Int?
-    created_at   DateTime @default(now()) // 创建时间
-    updated_at   DateTime @updatedAt // 更新时间，自动更新
+    posts        Post[]
+    comments     Comment[]
+    created_at   DateTime  @default(now()) // 创建时间
+    updated_at   DateTime  @updatedAt // 更新时间，自动更新
 }
 
 /// @Python(instance_name: "role")
@@ -47,7 +50,7 @@ model Role {
     description String? // 角色描述
     users       User[]  @relation("user_roles") // 多对多关系, 一个角色可以分配给多个用户
     apis        Api[]   @relation("role_apis") // 多对多关系，角色可以访问多个API
-    menus       menu[] @relation("role_menus") // 多对多关系，角色可以访问多个菜单
+    menus       Menu[]  @relation("role_menus") // 多对多关系，角色可以访问多个菜单
 }
 
 /// @Python(instance_name: "api")
@@ -60,7 +63,7 @@ model Api {
 }
 
 /// @Python(instance_name: "menu")
-model menu {
+model Menu {
     id          Int      @id @default(autoincrement())
     name        String   @unique // 菜单名称
     type        String   @default("menu") // 菜单类型，默认为菜单
@@ -68,11 +71,42 @@ model menu {
     path        String? // 菜单路径
     description String? // 菜单描述
     parent_id   Int? // 父菜单ID
-    parent      menu?    @relation("menu_hierarchy", fields: [parent_id], references: [id]) // 父菜单
-    sub_menus   menu[]   @relation("menu_hierarchy") // 子菜单
+    parent      Menu?    @relation("menu_hierarchy", fields: [parent_id], references: [id]) // 父菜单
+    sub_menus   Menu[]   @relation("menu_hierarchy") // 子菜单
     is_hidden   Boolean  @default(false) // 是否隐藏
     component   String? // 组件路径
     roles       Role[]   @relation("role_menus") // 多对多关系，多个角色可以访问此菜单
     created_at  DateTime @default(now()) // 创建时间
     updated_at  DateTime @updatedAt // 更新时间，自动更新
+}
+
+/// @Python(instance_name: "post")
+model Post {
+    id         Int       @id @default(autoincrement())
+    title      String    @unique // 文章标题
+    content    String? // 文章内容
+    author     User?     @relation(fields: [author_id], references: [id]) // 一对多关系，一篇文章只能有一个作者
+    author_id  Int?
+    comments   Comment[] // 一对多关系，一篇文章可以有多条评论
+    created_at DateTime  @default(now()) // 创建时间
+    tags        Tag[]     @relation("post_tags") // 多对多关系，一篇文章可以有多个标签
+}
+
+/// @Python(instance_name: "comment")
+model Comment {
+    id         Int      @id @default(autoincrement())
+    content    String // 评论内容
+    post       Post?    @relation(fields: [post_id], references: [id]) // 一对多关系，一条评论只能属于一篇文章
+    post_id    Int
+    author     User?    @relation(fields: [author_id], references: [id]) // 一对多关系，一条评论只能有一个作者
+    author_id  Int
+    created_at DateTime @default(now()) // 创建时间
+}
+
+/// @Python(instance_name: "tag")
+model Tag {
+    id          Int     @id @default(autoincrement())
+    name        String  @unique // 标签名称
+    description String? // 标签描述
+    posts       Post[]  @relation("post_tags") // 多对多关系，一个标签可以属于多篇文章
 }
